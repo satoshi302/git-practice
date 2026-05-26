@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.log
+logs/
+firmware/*.bin
+firmware/*.img
+firmware/*.gz
+!firmware/.gitkeep
