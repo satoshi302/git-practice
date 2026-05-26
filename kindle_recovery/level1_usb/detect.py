@@ -1,6 +1,6 @@
 import os
-import socket
 import subprocess
+import sys
 
 from kindle_recovery.common.logger import get_logger
 from kindle_recovery.common.usb_utils import DeviceMode, detect_mode, list_kindle_devices
@@ -8,16 +8,31 @@ from kindle_recovery.common.usb_utils import DeviceMode, detect_mode, list_kindl
 log = get_logger(__name__)
 
 KINDLE_USBNET_IP = "192.168.2.2"
-KINDLE_USBNET_IFACES = ("usb0", "rndis0", "eth1")
+KINDLE_USBNET_IFACES = ("usb0", "rndis0", "en5", "en6")
+
+_IS_MACOS = sys.platform == "darwin"
+
+
+def _iface_exists(iface: str) -> bool:
+    if _IS_MACOS:
+        result = subprocess.run(["ifconfig", iface], capture_output=True)
+        return result.returncode == 0
+    return os.path.exists(f"/sys/class/net/{iface}")
+
+
+def _ping_cmd(ip: str, timeout: float) -> list[str]:
+    if _IS_MACOS:
+        return ["ping", "-c", "1", "-t", str(int(timeout)), ip]
+    return ["ping", "-c", "1", "-W", str(int(timeout)), ip]
 
 
 def check_usbnet_reachable(timeout: float = 2.0) -> bool:
     for iface in KINDLE_USBNET_IFACES:
-        if os.path.exists(f"/sys/class/net/{iface}"):
+        if _iface_exists(iface):
             log.info("USBNet interface %s found", iface)
             try:
                 result = subprocess.run(
-                    ["ping", "-c", "1", "-W", str(int(timeout)), KINDLE_USBNET_IP],
+                    _ping_cmd(KINDLE_USBNET_IP, timeout),
                     capture_output=True, timeout=timeout + 1,
                 )
                 if result.returncode == 0:
@@ -70,7 +85,8 @@ def report_status() -> DeviceMode:
         else:
             log.warning("USBNet interface found but device not reachable via ping.")
     elif mode == DeviceMode.SERIAL:
-        log.info("Device is in CDC-ACM serial mode. Check /dev/ttyACM*.")
+        port_hint = "/dev/cu.usbmodem*" if _IS_MACOS else "/dev/ttyACM*"
+        log.info("Device is in CDC-ACM serial mode. Check %s.", port_hint)
     elif mode in (DeviceMode.SDP_ROM, DeviceMode.SDP_ROM_ALT):
         log.info("Device is in NXP SDP ROM download mode.")
         log.info("Run: python scripts/recover.py sdp --binary <uboot.bin>")

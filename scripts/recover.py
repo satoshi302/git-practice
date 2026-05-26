@@ -6,13 +6,15 @@ Usage examples:
   python scripts/recover.py detect
   python scripts/recover.py charge
   python scripts/recover.py sdp --binary uboot-spl.bin
-  python scripts/recover.py bootlog --port /dev/ttyUSB0
-  python scripts/recover.py uboot --port /dev/ttyUSB0
-  python scripts/recover.py flash os --port /dev/ttyUSB0 --image firmware/os.img
+  python scripts/recover.py bootlog --port /dev/cu.usbserial-0001  (macOS)
+  python scripts/recover.py bootlog --port /dev/ttyUSB0            (Linux)
+  python scripts/recover.py uboot --port <port>
+  python scripts/recover.py flash os --port <port> --image firmware/os.img
   python scripts/recover.py full
 """
-import sys
+import glob
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -21,6 +23,17 @@ import click
 from kindle_recovery.common.logger import get_logger
 
 log = get_logger("recover")
+
+
+def _default_port() -> str:
+    if sys.platform == "darwin":
+        # CP2102, CH340, FT232 on macOS
+        for pattern in ("/dev/cu.SLAB_USBtoUART", "/dev/cu.usbserial-*", "/dev/cu.usbmodem*"):
+            matches = sorted(glob.glob(pattern))
+            if matches:
+                return matches[0]
+        return "/dev/cu.usbserial-0001"
+    return "/dev/ttyUSB0"
 
 
 @click.group()
@@ -58,7 +71,7 @@ def sdp(binary: str, addr: int):
 
 
 @cli.command()
-@click.option("--port", default="/dev/ttyUSB0", show_default=True)
+@click.option("--port", default=_default_port, show_default=True)
 @click.option("--baud", default=115200, show_default=True)
 @click.option("--duration", default=30.0, show_default=True, help="Capture duration in seconds.")
 @click.option("--save", default=None, help="Save log to file.")
@@ -79,7 +92,7 @@ def bootlog(port: str, baud: int, duration: float, save: str | None):
 
 
 @cli.command()
-@click.option("--port", default="/dev/ttyUSB0", show_default=True)
+@click.option("--port", default=_default_port, show_default=True)
 @click.option("--baud", default=115200, show_default=True)
 def uart(port: str, baud: int):
     """Open an interactive UART console (Ctrl-] to exit)."""
@@ -89,7 +102,7 @@ def uart(port: str, baud: int):
 
 
 @cli.command()
-@click.option("--port", default="/dev/ttyUSB0", show_default=True)
+@click.option("--port", default=_default_port, show_default=True)
 @click.option("--baud", default=115200, show_default=True)
 def uboot(port: str, baud: int):
     """Interrupt U-Boot and drop into automated U-Boot shell."""
@@ -112,7 +125,7 @@ def uboot(port: str, baud: int):
 
 @cli.command()
 @click.argument("partition", type=click.Choice(["os", "recovery", "env", "userdata"]))
-@click.option("--port", default="/dev/ttyUSB0", show_default=True)
+@click.option("--port", default=_default_port, show_default=True)
 @click.option("--baud", default=115200, show_default=True)
 @click.option("--image", required=True, type=click.Path(exists=True))
 @click.option("--server-ip", default="192.168.2.1", show_default=True)
@@ -132,7 +145,7 @@ def flash(partition: str, port: str, baud: int, image: str, server_ip: str, devi
 
 
 @cli.command()
-@click.option("--port", default="/dev/ttyUSB0", show_default=True)
+@click.option("--port", default=_default_port, show_default=True)
 def full(port: str):
     """
     Guided recovery wizard.
