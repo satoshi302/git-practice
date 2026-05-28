@@ -1,4 +1,3 @@
-from __future__ import annotations
 """
 NXP Serial Download Protocol (SDP) over USB HID.
 
