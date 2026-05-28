@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 NXP Manufacturing Tool (MfgTool) protocol implementation.
 

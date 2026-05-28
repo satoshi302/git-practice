@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Kindle firmware download and extraction utilities.
 
