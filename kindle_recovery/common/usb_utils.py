@@ -1,12 +1,25 @@
+import sys
 import time
 from dataclasses import dataclass
 from enum import Enum
 
 import usb.core
+import usb.backend.libusb1
 
 from kindle_recovery.common.logger import get_logger
 
 log = get_logger(__name__)
+
+
+def _get_backend():
+    """Return a pyusb backend, loading the bundled libusb DLL on Windows."""
+    if sys.platform == "win32":
+        try:
+            import libusb
+            return usb.backend.libusb1.get_backend(find_library=lambda _: libusb.dll.name)
+        except Exception:
+            pass
+    return usb.backend.libusb1.get_backend()
 
 
 class DeviceMode(Enum):
@@ -45,9 +58,10 @@ class KindleDevice:
 
 
 def list_kindle_devices() -> list[KindleDevice]:
+    backend = _get_backend()
     devices = []
     for (vid, pid), mode in _KNOWN_DEVICES.items():
-        found = usb.core.find(idVendor=vid, idProduct=pid, find_all=True)
+        found = usb.core.find(idVendor=vid, idProduct=pid, find_all=True, backend=backend)
         for dev in (found or []):
             try:
                 serial = dev.serial_number
@@ -63,9 +77,10 @@ def list_kindle_devices() -> list[KindleDevice]:
 def wait_for_device(
     vid: int, pid: int, timeout: float = 30.0, poll_interval: float = 0.5
 ) -> KindleDevice | None:
+    backend = _get_backend()
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        dev = usb.core.find(idVendor=vid, idProduct=pid)
+        dev = usb.core.find(idVendor=vid, idProduct=pid, backend=backend)
         if dev is not None:
             try:
                 serial = dev.serial_number
