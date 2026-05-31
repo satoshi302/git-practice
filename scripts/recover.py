@@ -26,8 +26,16 @@ log = get_logger("recover")
 
 
 def _default_port() -> str:
+    if sys.platform == "win32":
+        try:
+            import serial.tools.list_ports
+            ports = list(serial.tools.list_ports.comports())
+            if ports:
+                return ports[0].device
+        except Exception:
+            pass
+        return "COM3"
     if sys.platform == "darwin":
-        # CP2102, CH340, FT232 on macOS
         for pattern in ("/dev/cu.SLAB_USBtoUART", "/dev/cu.usbserial-*", "/dev/cu.usbmodem*"):
             matches = sorted(glob.glob(pattern))
             if matches:

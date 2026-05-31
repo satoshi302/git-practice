@@ -11,9 +11,13 @@ KINDLE_USBNET_IP = "192.168.2.2"
 KINDLE_USBNET_IFACES = ("usb0", "rndis0", "en5", "en6")
 
 _IS_MACOS = sys.platform == "darwin"
+_IS_WINDOWS = sys.platform == "win32"
 
 
 def _iface_exists(iface: str) -> bool:
+    if _IS_WINDOWS:
+        result = subprocess.run(["ipconfig"], capture_output=True, text=True)
+        return iface.lower() in result.stdout.lower()
     if _IS_MACOS:
         result = subprocess.run(["ifconfig", iface], capture_output=True)
         return result.returncode == 0
@@ -21,6 +25,8 @@ def _iface_exists(iface: str) -> bool:
 
 
 def _ping_cmd(ip: str, timeout: float) -> list[str]:
+    if _IS_WINDOWS:
+        return ["ping", "-n", "1", "-w", str(int(timeout * 1000)), ip]
     if _IS_MACOS:
         return ["ping", "-c", "1", "-t", str(int(timeout)), ip]
     return ["ping", "-c", "1", "-W", str(int(timeout)), ip]

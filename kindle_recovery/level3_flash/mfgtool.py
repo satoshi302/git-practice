@@ -41,27 +41,52 @@ class MfgToolSession:
         log.info("Bootstrap loaded. Waiting for device to re-enumerate as USB MSC...")
 
     def wait_for_msc_mode(self, timeout: float = MSC_POLL_TIMEOUT) -> str:
+        import sys
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            result = subprocess.run(
-                ["lsblk", "-o", "NAME,VENDOR,MODEL", "--nodeps"],
-                capture_output=True, text=True,
-            )
-            for line in result.stdout.splitlines():
-                if "kindle" in line.lower() or "amazon" in line.lower():
-                    dev_name = line.split()[0]
-                    dev_path = f"/dev/{dev_name}"
-                    log.info("Kindle MSC device found: %s", dev_path)
-                    return dev_path
-            # Also check by Amazon VID in sysfs
-            sysfs = "/sys/bus/usb/devices"
-            if os.path.exists(sysfs):
-                for entry in os.listdir(sysfs):
-                    vendor_path = os.path.join(sysfs, entry, "idVendor")
-                    if os.path.exists(vendor_path):
-                        with open(vendor_path) as f:
-                            if f.read().strip() == f"{AMAZON_VID:04x}":
-                                log.info("Amazon USB device found in sysfs: %s", entry)
+            if sys.platform == "win32":
+                result = subprocess.run(
+                    ["wmic", "diskdrive", "get", "Model,DeviceID"],
+                    capture_output=True, text=True,
+                )
+                for line in result.stdout.splitlines():
+                    if "kindle" in line.lower() or "amazon" in line.lower():
+                        device_id = line.strip().split()[-1]
+                        log.info("Kindle MSC device found: %s", device_id)
+                        return device_id
+            elif sys.platform == "darwin":
+                result = subprocess.run(
+                    ["diskutil", "list", "-plist", "external"],
+                    capture_output=True, text=True,
+                )
+                import plistlib
+                try:
+                    plist = plistlib.loads(result.stdout.encode())
+                    for disk in plist.get("WholeDisks", []):
+                        dev_path = f"/dev/{disk}"
+                        log.info("External disk found: %s", dev_path)
+                        return dev_path
+                except Exception:
+                    pass
+            else:
+                result = subprocess.run(
+                    ["lsblk", "-o", "NAME,VENDOR,MODEL", "--nodeps"],
+                    capture_output=True, text=True,
+                )
+                for line in result.stdout.splitlines():
+                    if "kindle" in line.lower() or "amazon" in line.lower():
+                        dev_name = line.split()[0]
+                        dev_path = f"/dev/{dev_name}"
+                        log.info("Kindle MSC device found: %s", dev_path)
+                        return dev_path
+                sysfs = "/sys/bus/usb/devices"
+                if os.path.exists(sysfs):
+                    for entry in os.listdir(sysfs):
+                        vendor_path = os.path.join(sysfs, entry, "idVendor")
+                        if os.path.exists(vendor_path):
+                            with open(vendor_path) as f:
+                                if f.read().strip() == f"{AMAZON_VID:04x}":
+                                    log.info("Amazon USB device found in sysfs: %s", entry)
             time.sleep(2.0)
         raise FlashError("Timed out waiting for MfgTool MSC enumeration.")
 

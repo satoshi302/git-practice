@@ -87,13 +87,24 @@ class UARTConsole:
         reader.start()
 
         try:
-            while True:
-                r, _, _ = select.select([sys.stdin], [], [], 0.05)
-                if r:
-                    ch = sys.stdin.buffer.read1(256)
-                    if b"\x1d" in ch:  # Ctrl-]
-                        break
-                    self._ser.write(ch)
+            if sys.platform == "win32":
+                import msvcrt
+                while True:
+                    if msvcrt.kbhit():
+                        ch = msvcrt.getwch()
+                        if ch == "\x1d":  # Ctrl-]
+                            break
+                        self._ser.write(ch.encode(errors="replace"))
+                    else:
+                        time.sleep(0.01)
+            else:
+                while True:
+                    r, _, _ = select.select([sys.stdin], [], [], 0.05)
+                    if r:
+                        ch = sys.stdin.buffer.read1(256)
+                        if b"\x1d" in ch:  # Ctrl-]
+                            break
+                        self._ser.write(ch)
         finally:
             stop.set()
             reader.join(timeout=1.0)

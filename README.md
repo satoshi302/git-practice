@@ -22,25 +22,28 @@
 |----|----------|--------|
 | macOS 12以上 | ✅ | 3.10以上 |
 | Linux (Ubuntu/Debian) | ✅ | 3.10以上 |
-| Windows | ❌ | 非対応 |
+| Windows 10/11 | ✅ | 3.10以上 |
 
 ## セットアップ
+
+### Windows
+
+```powershell
+# PowerShellで実行 (管理者権限推奨)
+.\scripts\setup_windows.ps1
+```
+
+> **注意**: pyusbでUSBデバイスにアクセスするには [Zadig](https://zadig.akeo.ie/) で WinUSB ドライバーのインストールが必要です。詳細はスクリプト実行後の案内を参照。
 
 ### macOS
 
 ```bash
-# Homebrew + 依存関係を一括インストール
 bash scripts/setup_udev.sh
-
-# または手動で
-brew install libusb hidapi python3
-pip3 install -r requirements.txt
 ```
 
 ### Linux
 
 ```bash
-# udevルール + 依存関係を一括インストール
 sudo bash scripts/setup_udev.sh
 ```
 
@@ -56,17 +59,22 @@ python scripts/recover.py detect
 # 起動ログキャプチャ・診断 (UART) — ポートは自動検出
 python scripts/recover.py bootlog
 
-# ポートを明示する場合 (macOS例)
-python scripts/recover.py bootlog --port /dev/cu.usbserial-0001
-
-# U-Bootコンソール (UART)
-python scripts/recover.py uboot
+# ポートを明示する場合
+python scripts/recover.py bootlog --port COM3        # Windows
+python scripts/recover.py bootlog --port /dev/cu.usbserial-0001  # macOS
 ```
 
-### macOS シリアルポートの確認方法
+### シリアルポートの確認方法
 
+**Windows**: デバイスマネージャー → ポート (COM と LPT)
+
+```powershell
+# PowerShellでも確認可能
+.\scripts\detect_kindle.ps1
+```
+
+**macOS**:
 ```bash
-# USB-UARTアダプターを接続した状態で確認
 ls /dev/cu.*
 # 例: /dev/cu.usbserial-1410  /dev/cu.SLAB_USBtoUART
 ```
