@@ -15,10 +15,17 @@ def _get_backend():
     """Return a pyusb backend, loading the bundled libusb DLL on Windows."""
     if sys.platform == "win32":
         try:
-            import libusb
-            return usb.backend.libusb1.get_backend(find_library=lambda _: libusb.dll.name)
-        except Exception:
+            import libusb_package
+            backend = usb.backend.libusb1.get_backend(find_library=libusb_package.find_library)
+            if backend is not None:
+                return backend
+        except ImportError:
             pass
+        raise RuntimeError(
+            "USB backend not available on Windows.\n"
+            "Run: pip install libusb-package\n"
+            "または Zadig で WinUSB ドライバーをインストールしてください: https://zadig.akeo.ie/"
+        )
     return usb.backend.libusb1.get_backend()
 
 
